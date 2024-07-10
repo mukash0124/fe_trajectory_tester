@@ -28,6 +28,22 @@ possible_positions = [
     (415, 495),
     (415, 535),
 ]
+
+obstacles = [
+    [120, 220],
+    [520, 220],
+    [120, 320],
+    [520, 320],
+    [120, 420],
+    [520, 420],
+    [220, 120],
+    [220, 520],
+    [320, 120],
+    [320, 520],
+    [420, 120],
+    [420, 520],
+]
+
 colors = ["#ff0000", "#00ff00"]
 
 
@@ -60,11 +76,69 @@ class Canvas(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap("bg.png")
         self.setPixmap(pixmap)
         self.pen_color = QtGui.QColor("#ff0000")
-
-        self.obstacles = []
+        self.obstacles = [
+            [120, 220],
+            [120, 320],
+            [120, 420],
+            [220, 520],
+            [320, 520],
+            [420, 520],
+            [520, 420],
+            [520, 320],
+            [520, 220],
+            [420, 120],
+            [320, 120],
+            [220, 120],
+        ]
+        self.directionClockwise = True
 
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
+
+    def findNearestPoint(self, coords):
+        index = None
+        for i in range(12):
+            if (
+                (
+                    coords[0] == self.obstacles[i][0] - 20
+                    or coords[0] == self.obstacles[i][0] + 20
+                )
+                and coords[1] == self.obstacles[i][1]
+            ) or (
+                (
+                    coords[0] == self.obstacles[i][0] - 20
+                    or coords[0] == self.obstacles[i][0] + 20
+                )
+                and coords[1] == self.obstacles[i][1]
+            ):
+                index = i
+        return index
+
+    def addOffset(self, coords):
+        index = self.findNearestPoint(coords)
+        if self.directionClockwise:
+            if self.pen_color == QtGui.QColor("#ff0000"):
+                if coords[0] <= 140 or coords[0] >= 500:
+                    coords[0] += 20
+                else:
+                    coords[1] += 20
+            else:
+                if coords[0] <= 140 or coords[0] >= 500:
+                    coords[0] -= 20
+                else:
+                    coords[1] -= 20
+        else:
+            if self.pen_color == QtGui.QColor("#ff0000"):
+                if coords[0] <= 140 or coords[0] >= 500:
+                    coords[0] -= 20
+                else:
+                    coords[1] -= 20
+            else:
+                if coords[0] <= 140 or coords[0] >= 500:
+                    coords[0] += 20
+                else:
+                    coords[1] += 20
+        self.obstacles[index] = coords
 
     def mousePressEvent(self, e):
         isPossible, coords = isPossiblePosition(e.position())
@@ -79,7 +153,22 @@ class Canvas(QtWidgets.QLabel):
             painter.end()
             self.setPixmap(canvas)
 
-            self.obstacles.append((coords[0] + 5, coords[1] + 5))
+            self.addOffset([coords[0] + 5, coords[1] + 5])
+
+    def build_trajectory(self):
+        canvas = self.pixmap()
+        painter = QtGui.QPainter(canvas)
+        p = painter.pen()
+        p.setWidth(4)
+        p.setColor(QtGui.QColor("#000000"))
+        painter.setPen(p)
+        for i in range(len(self.obstacles)):
+            painter.drawLine(
+                QtCore.QPoint(self.obstacles[i - 1][0], self.obstacles[i - 1][1]),
+                QtCore.QPoint(self.obstacles[i][0], self.obstacles[i][1]),
+            )
+        painter.end()
+        self.setPixmap(canvas)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -97,6 +186,10 @@ class MainWindow(QtWidgets.QMainWindow):
         palette = QtWidgets.QHBoxLayout()
         self.add_palette_buttons(palette)
         l.addLayout(palette)
+
+        build = QtWidgets.QPushButton()
+        build.pressed.connect(self.canvas.build_trajectory)
+        l.addWidget(build)
 
         self.setCentralWidget(w)
 
